@@ -670,18 +670,30 @@
         return result;
       }
 
-      async function pollForResult(requestId, apiKey) {
+      async function pollForResult(requestId, apiKey, endpoint) {
         const maxAttempts = 60;
         const pollInterval = 5000;
 
+        // Determine the correct polling endpoint based on successful endpoint
+        let pollEndpoint;
+        if (endpoint.includes("queue.fal.run")) {
+          pollEndpoint = endpoint
+            .replace("/fal-ai/", "/fal-ai/")
+            .replace("reference-to-video", "reference-to-video");
+          pollEndpoint = `${pollEndpoint}/requests/${requestId}`;
+        } else {
+          pollEndpoint =
+            endpoint.replace("fal.run", "queue.fal.run") +
+            `/requests/${requestId}`;
+        }
+
+        console.log("Polling endpoint:", pollEndpoint);
+
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           try {
-            const response = await fetch(
-              `https://fal.run/fal-ai/vidu/q1/reference-to-video/requests/${requestId}`,
-              {
-                headers: { Authorization: `Key ${apiKey}` },
-              }
-            );
+            const response = await fetch(pollEndpoint, {
+              headers: { Authorization: `Key ${apiKey}` },
+            });
 
             if (!response.ok) {
               throw new Error(`Polling failed: ${response.status}`);
@@ -791,7 +803,8 @@
 
           const finalResult = await pollForResult(
             submitResult.request_id,
-            apiKey
+            apiKey,
+            successfulEndpoint
           );
           console.log("Final result:", finalResult);
 
