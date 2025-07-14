@@ -1,4 +1,6 @@
 
+document.addEventListener("DOMContentLoaded", () => {
+
 const FAL_ENDPOINT = "https://fal.run/fal-ai/vidu/q1/reference-to-video";
 let uploadedImages = [];
 
@@ -201,5 +203,5 @@ generateBtn.addEventListener("click", async () => {
 
 updateGenerateButtonState();
 
-
 window.removeImage = removeImage;
+});
