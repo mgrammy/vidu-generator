@@ -607,8 +607,24 @@
           imageCount: uploadedImages.length,
         });
 
+        // Only enable if ALL requirements are met
         const shouldEnable = apiKey && prompt && hasImages;
         generateBtn.disabled = !shouldEnable;
+
+        // Update button text to show what's missing
+        if (!apiKey) {
+          generateBtn.innerHTML =
+            '<span class="btn-text">🔑 Enter API Key First</span><span class="loading">⟳</span>';
+        } else if (!prompt) {
+          generateBtn.innerHTML =
+            '<span class="btn-text">📝 Add Prompt to Continue</span><span class="loading">⟳</span>';
+        } else if (!hasImages) {
+          generateBtn.innerHTML =
+            '<span class="btn-text">📸 Upload 3+ Images</span><span class="loading">⟳</span>';
+        } else {
+          generateBtn.innerHTML =
+            '<span class="btn-text">🚀 Generate Video</span><span class="loading">⟳</span>';
+        }
 
         console.log("Generate button enabled:", shouldEnable);
       }
@@ -827,12 +843,6 @@
 
       // Initialize and force button state check
       updateGenerateButtonState();
-
-      // Force enable button for testing (remove this line once working)
-      setTimeout(() => {
-        console.log("Force enabling button for testing");
-        generateBtn.disabled = false;
-      }, 1000);
     </script>
   </body>
 </html>
