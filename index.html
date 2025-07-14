@@ -637,7 +637,7 @@
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           try {
             const response = await fetch(
-              `https://fal.run/fal-ai/vidu/q1/reference-to-video/requests/${requestId}`,
+              `https://queue.fal.run/fal-ai/vidu/reference-to-video/requests/${requestId}`,
               {
                 headers: { Authorization: `Key ${apiKey}` },
               }
