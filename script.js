@@ -200,3 +200,6 @@ generateBtn.addEventListener("click", async () => {
 });
 
 updateGenerateButtonState();
+
+
+window.removeImage = removeImage;
