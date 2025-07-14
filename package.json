@@ -1,0 +1,15 @@
+{
+  "name": "vidu-generator",
+  "version": "1.0.0",
+  "description": "Vidu Q1 Reference-to-Video Generator",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
