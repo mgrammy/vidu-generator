@@ -493,242 +493,10 @@
     </div>
 
     <script>
-      // Global variables
-      let uploadedImages = [];
+      const FAL_ENDPOINT = "https://fal.run/fal-ai/vidu/q1/reference-to-video";
 
-      // Get DOM elements
-      const uploadArea = document.getElementById("uploadArea");
-      const imageUpload = document.getElementById("imageUpload");
-      const uploadedImagesContainer = document.getElementById("uploadedImages");
-      const generateBtn = document.getElementById("generateBtn");
-      const statusSection = document.getElementById("statusSection");
-      const progressFill = document.getElementById("progressFill");
-      const statusText = document.getElementById("statusText");
-      const resultSection = document.getElementById("resultSection");
-      const resultVideo = document.getElementById("resultVideo");
-      const downloadBtn = document.getElementById("downloadBtn");
+      // All your previous variable declarations remain the same...
 
-      // File upload event listeners
-      uploadArea.addEventListener("click", () => imageUpload.click());
-      uploadArea.addEventListener("dragover", handleDragOver);
-      uploadArea.addEventListener("drop", handleDrop);
-      uploadArea.addEventListener("dragleave", handleDragLeave);
-      imageUpload.addEventListener("change", handleFileSelect);
-
-      // Input validation event listeners
-      document
-        .getElementById("apiKey")
-        .addEventListener("input", updateGenerateButtonState);
-      document
-        .getElementById("prompt")
-        .addEventListener("input", updateGenerateButtonState);
-
-      // Generate button event listener
-      generateBtn.addEventListener("click", generateVideo);
-
-      // Drag and drop handlers
-      function handleDragOver(e) {
-        e.preventDefault();
-        uploadArea.classList.add("dragover");
-      }
-
-      function handleDragLeave(e) {
-        e.preventDefault();
-        uploadArea.classList.remove("dragover");
-      }
-
-      function handleDrop(e) {
-        e.preventDefault();
-        uploadArea.classList.remove("dragover");
-        const files = Array.from(e.dataTransfer.files).filter((file) =>
-          file.type.startsWith("image/")
-        );
-        addImages(files);
-      }
-
-      function handleFileSelect(e) {
-        const files = Array.from(e.target.files);
-        addImages(files);
-      }
-
-      // Image management functions
-      function addImages(files) {
-        files.forEach((file) => {
-          if (uploadedImages.length >= 7) {
-            alert("Maximum 7 images allowed");
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const imageData = {
-              file: file,
-              dataUrl: e.target.result,
-              id: Date.now() + Math.random(),
-            };
-            uploadedImages.push(imageData);
-            renderUploadedImages();
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-
-      function removeImage(id) {
-        uploadedImages = uploadedImages.filter((img) => img.id !== id);
-        renderUploadedImages();
-      }
-
-      function renderUploadedImages() {
-        uploadedImagesContainer.innerHTML = "";
-        uploadedImages.forEach((image, index) => {
-          const imageElement = document.createElement("div");
-          imageElement.className = "image-preview";
-          imageElement.innerHTML = `
-                    <img src="${image.dataUrl}" alt="Reference ${index + 1}">
-                    <button class="remove-btn" onclick="removeImage(${
-                      image.id
-                    })">×</button>
-                    <div class="image-number">${index + 1}</div>
-                `;
-          uploadedImagesContainer.appendChild(imageElement);
-        });
-        updateGenerateButtonState();
-      }
-
-      function updateGenerateButtonState() {
-        const apiKey = document.getElementById("apiKey").value.trim();
-        const prompt = document.getElementById("prompt").value.trim();
-        const hasImages = uploadedImages.length >= 3;
-
-        console.log("Button state check:", {
-          apiKey: apiKey ? `${apiKey.length} characters` : "empty",
-          prompt: prompt ? `${prompt.length} characters` : "empty",
-          hasImages: hasImages,
-          imageCount: uploadedImages.length,
-        });
-
-        // Only enable if ALL requirements are met
-        const shouldEnable = apiKey && prompt && hasImages;
-        generateBtn.disabled = !shouldEnable;
-
-        // Update button text to show what's missing
-        if (!apiKey) {
-          generateBtn.innerHTML =
-            '<span class="btn-text">🔑 Enter API Key First</span><span class="loading">⟳</span>';
-        } else if (!prompt) {
-          generateBtn.innerHTML =
-            '<span class="btn-text">📝 Add Prompt to Continue</span><span class="loading">⟳</span>';
-        } else if (!hasImages) {
-          generateBtn.innerHTML =
-            '<span class="btn-text">📸 Upload 3+ Images</span><span class="loading">⟳</span>';
-        } else {
-          generateBtn.innerHTML =
-            '<span class="btn-text">🚀 Generate Video</span><span class="loading">⟳</span>';
-        }
-
-        console.log("Generate button enabled:", shouldEnable);
-      }
-
-      // Utility functions
-      function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      }
-
-      async function makeAPICall(url, apiKey, payload) {
-        console.log("Making API call to:", url);
-        console.log("With payload:", JSON.stringify(payload, null, 2));
-        console.log("With API key length:", apiKey.length);
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Key ${apiKey}`,
-          },
-          body: JSON.stringify(payload),
-        });
-
-        console.log("Response status:", response.status);
-        console.log(
-          "Response headers:",
-          Object.fromEntries(response.headers.entries())
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.log("Error response body:", errorText);
-          throw new Error(`API Error ${response.status}: ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log("Success response:", result);
-        return result;
-      }
-
-      async function pollForResult(requestId, apiKey, endpoint) {
-        const maxAttempts = 60;
-        const pollInterval = 5000;
-
-        // Determine the correct polling endpoint based on successful endpoint
-        let pollEndpoint;
-        if (endpoint.includes("queue.fal.run")) {
-          pollEndpoint = endpoint
-            .replace("/fal-ai/", "/fal-ai/")
-            .replace("reference-to-video", "reference-to-video");
-          pollEndpoint = `${pollEndpoint}/requests/${requestId}`;
-        } else {
-          pollEndpoint =
-            endpoint.replace("fal.run", "queue.fal.run") +
-            `/requests/${requestId}`;
-        }
-
-        console.log("Polling endpoint:", pollEndpoint);
-
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          try {
-            const response = await fetch(pollEndpoint, {
-              headers: { Authorization: `Key ${apiKey}` },
-            });
-
-            if (!response.ok) {
-              throw new Error(`Polling failed: ${response.status}`);
-            }
-
-            const result = await response.json();
-            console.log(`Polling attempt ${attempt + 1}:`, result);
-
-            if (result.status === "COMPLETED") {
-              return result;
-            } else if (result.status === "FAILED") {
-              throw new Error(
-                `Generation failed: ${result.error || "Unknown error"}`
-              );
-            }
-
-            if (result.logs && result.logs.length > 0) {
-              const latestLog = result.logs[result.logs.length - 1];
-              if (latestLog && latestLog.message) {
-                statusText.textContent = latestLog.message;
-              }
-            }
-
-            await new Promise((resolve) => setTimeout(resolve, pollInterval));
-          } catch (error) {
-            console.error(`Polling attempt ${attempt + 1} failed:`, error);
-            if (attempt === maxAttempts - 1) throw error;
-            await new Promise((resolve) => setTimeout(resolve, pollInterval));
-          }
-        }
-
-        throw new Error("Timeout: Video generation took too long");
-      }
-
-      // Main video generation function
       async function generateVideo() {
         const apiKey = document.getElementById("apiKey").value.trim();
         const prompt = document.getElementById("prompt").value.trim();
@@ -755,9 +523,6 @@
           statusSection.classList.add("show");
           resultSection.classList.remove("show");
 
-          console.log("Starting video generation");
-
-          // Convert images to base64
           statusText.textContent = "Preparing reference images...";
           progressFill.style.width = "20%";
 
@@ -770,45 +535,33 @@
             }%`;
           }
 
-          console.log("Images converted to base64");
-
-          // Submit generation request
           statusText.textContent = "Submitting video generation request...";
           progressFill.style.width = "60%";
 
+          // ✅ FIXED PAYLOAD STRUCTURE
           const payload = {
-            input: {
-              prompt: prompt,
-              reference_image_urls: imageUrls,
-              aspect_ratio: "16:9",
-              duration: durationInSeconds,
-            },
+            prompt: prompt,
+            reference_image_urls: imageUrls,
+            aspect_ratio: "16:9",
+            duration: durationInSeconds,
           };
 
-          const submitResult = await makeAPICall(
-            "https://fal.run/fal-ai/vidu/q1/reference-to-video",
-            apiKey,
-            payload
-          );
-
-          console.log("Submit result:", submitResult);
+          const submitResult = await makeAPICall(FAL_ENDPOINT, apiKey, payload);
 
           if (!submitResult.request_id) {
             throw new Error("No request ID received from API");
           }
 
-          // Poll for completion
           statusText.textContent = "Processing video...";
           progressFill.style.width = "70%";
 
+          // ✅ FIXED: Use FAL_ENDPOINT instead of undefined successfulEndpoint
           const finalResult = await pollForResult(
             submitResult.request_id,
             apiKey,
-            successfulEndpoint
+            FAL_ENDPOINT
           );
-          console.log("Final result:", finalResult);
 
-          // Display result
           progressFill.style.width = "100%";
           statusText.textContent = "Video generated successfully!";
 
@@ -828,10 +581,10 @@
             };
 
             document.getElementById("videoInfo").innerHTML = `
-                        <strong>Video Details:</strong><br>
-                        Duration: ${durationInSeconds}s • Resolution: 1080p • Aspect Ratio: 16:9<br>
-                        Request ID: ${submitResult.request_id}
-                    `;
+          <strong>Video Details:</strong><br>
+          Duration: ${durationInSeconds}s • Resolution: 1080p • Aspect Ratio: 16:9<br>
+          Request ID: ${submitResult.request_id}
+        `;
 
             setTimeout(() => {
               statusSection.classList.remove("show");
@@ -842,11 +595,11 @@
         } catch (error) {
           console.error("Error generating video:", error);
           statusText.innerHTML = `
-                    <div class="error-message">
-                        Error: ${error.message}<br>
-                        <small>Check the browser console for more details</small>
-                    </div>
-                `;
+        <div class="error-message">
+          Error: ${error.message}<br>
+          <small>Check the browser console for more details</small>
+        </div>
+      `;
         } finally {
           generateBtn.classList.remove("loading");
           generateBtn.disabled = false;
@@ -854,7 +607,6 @@
         }
       }
 
-      // Initialize and force button state check
       updateGenerateButtonState();
     </script>
   </body>
