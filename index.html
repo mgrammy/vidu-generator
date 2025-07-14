@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vidu Q1 Reference-to-Video Generator</title>
-    <!-- (your existing styles stay the same, omitted here for brevity) -->
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
@@ -14,7 +14,71 @@
       </div>
 
       <div class="content">
-        <!-- ... API Key / Upload / Prompt / Duration UI ... (same as before) ... -->
+        <div class="api-key-section">
+          <h3>API Configuration</h3>
+          <div class="form-group">
+            <label for="apiKey">fal.ai API Key:</label>
+            <input
+              type="password"
+              id="apiKey"
+              placeholder="Enter your fal.ai API key"
+            />
+            <small>
+              Get your API key from
+              <a href="https://fal.ai/dashboard" target="_blank">fal.ai dashboard</a>
+            </small>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <h3>📋 How it works</h3>
+          <ul>
+            <li>Upload 3–7 reference images that will guide your video generation</li>
+            <li>Write a descriptive prompt for the action/scene you want</li>
+            <li>Set video duration (4–16 seconds recommended)</li>
+            <li>All videos are generated in 16:9 aspect ratio at 1080p quality</li>
+          </ul>
+        </div>
+
+        <div class="form-group">
+          <label for="imageUpload">
+            Reference Images (3-7 images)
+            <span class="aspect-ratio-badge">16:9</span>
+          </label>
+          <div class="file-upload-area" id="uploadArea">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">Click to upload or drag & drop images</div>
+            <div class="upload-subtext">Supports JPG, PNG, WebP • Max 7 images</div>
+            <input type="file" id="imageUpload" multiple accept="image/*" style="display: none" />
+          </div>
+          <div class="uploaded-images" id="uploadedImages"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="prompt">Video Prompt:</label>
+          <textarea
+            id="prompt"
+            placeholder="Describe the action, movement, or scene you want to create..."
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Video Duration:</label>
+          <div class="duration-controls">
+            <div>
+              <label for="durationValue">Duration:</label>
+              <input type="number" id="durationValue" min="4" max="16" value="8" step="1" />
+            </div>
+            <div>
+              <label for="durationUnit">Unit:</label>
+              <select id="durationUnit">
+                <option value="seconds">Seconds</option>
+                <option value="frames">Frames (24 FPS)</option>
+              </select>
+            </div>
+          </div>
+          <small>Recommended: 4–16 seconds • Longer videos cost more</small>
+        </div>
 
         <button class="generate-btn" id="generateBtn">
           <span class="btn-text">🚀 Generate Video</span>
@@ -33,253 +97,12 @@
           <h3>🎉 Your Video is Ready!</h3>
           <video class="result-video" id="resultVideo" controls></video>
           <br />
-          <button class="download-btn" id="downloadBtn">
-            📥 Download Video
-          </button>
-          <div
-            id="videoInfo"
-            style="margin-top: 15px; color: #7f8c8d; font-size: 14px"
-          ></div>
+          <button class="download-btn" id="downloadBtn">📥 Download Video</button>
+          <div id="videoInfo"></div>
         </div>
       </div>
     </div>
 
-    <script>
-      const FAL_ENDPOINT = "https://fal.run/fal-ai/vidu/q1/reference-to-video";
-      let uploadedImages = [];
-
-      const uploadArea = document.getElementById("uploadArea");
-      const imageUpload = document.getElementById("imageUpload");
-      const uploadedImagesContainer = document.getElementById("uploadedImages");
-      const generateBtn = document.getElementById("generateBtn");
-      const statusSection = document.getElementById("statusSection");
-      const progressFill = document.getElementById("progressFill");
-      const statusText = document.getElementById("statusText");
-      const resultSection = document.getElementById("resultSection");
-      const resultVideo = document.getElementById("resultVideo");
-      const downloadBtn = document.getElementById("downloadBtn");
-
-      uploadArea.addEventListener("click", () => imageUpload.click());
-      uploadArea.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        uploadArea.classList.add("dragover");
-      });
-      uploadArea.addEventListener("dragleave", (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove("dragover");
-      });
-      uploadArea.addEventListener("drop", (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove("dragover");
-        const files = Array.from(e.dataTransfer.files).filter((file) =>
-          file.type.startsWith("image/")
-        );
-        addImages(files);
-      });
-      imageUpload.addEventListener("change", (e) => {
-        addImages(Array.from(e.target.files));
-      });
-
-      function addImages(files) {
-        files.forEach((file) => {
-          if (uploadedImages.length >= 7) {
-            alert("Maximum 7 images allowed");
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            uploadedImages.push({
-              file,
-              dataUrl: e.target.result,
-              id: Date.now() + Math.random(),
-            });
-            renderUploadedImages();
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-
-      function removeImage(id) {
-        uploadedImages = uploadedImages.filter((img) => img.id !== id);
-        renderUploadedImages();
-      }
-
-      function renderUploadedImages() {
-        uploadedImagesContainer.innerHTML = "";
-        uploadedImages.forEach((image, index) => {
-          const el = document.createElement("div");
-          el.className = "image-preview";
-          el.innerHTML = `
-            <img src="${image.dataUrl}" alt="Reference ${index + 1}">
-            <button class="remove-btn" onclick="removeImage(${
-              image.id
-            })">×</button>
-            <div class="image-number">${index + 1}</div>
-          `;
-          uploadedImagesContainer.appendChild(el);
-        });
-        updateGenerateButtonState();
-      }
-
-      function updateGenerateButtonState() {
-        const apiKey = document.getElementById("apiKey").value.trim();
-        const prompt = document.getElementById("prompt").value.trim();
-        const hasImages = uploadedImages.length >= 3;
-
-        generateBtn.disabled = !(apiKey && prompt && hasImages);
-
-        if (!apiKey) {
-          generateBtn.innerHTML =
-            '<span class="btn-text">🔑 Enter API Key First</span><span class="loading">⟳</span>';
-        } else if (!prompt) {
-          generateBtn.innerHTML =
-            '<span class="btn-text">📝 Add Prompt to Continue</span><span class="loading">⟳</span>';
-        } else if (!hasImages) {
-          generateBtn.innerHTML =
-            '<span class="btn-text">📸 Upload 3+ Images</span><span class="loading">⟳</span>';
-        } else {
-          generateBtn.innerHTML =
-            '<span class="btn-text">🚀 Generate Video</span><span class="loading">⟳</span>';
-        }
-      }
-
-      document
-        .getElementById("apiKey")
-        .addEventListener("input", updateGenerateButtonState);
-      document
-        .getElementById("prompt")
-        .addEventListener("input", updateGenerateButtonState);
-
-      function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      }
-
-      async function makeAPICall(url, apiKey, payload) {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Key ${apiKey}`,
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          throw new Error(`API Error ${res.status}: ${await res.text()}`);
-        }
-        return res.json();
-      }
-
-      async function pollForResult(requestId, apiKey, endpoint) {
-        const pollEndpoint = `https://queue.fal.run/fal-ai/vidu/q1/reference-to-video/requests/${requestId}`;
-        for (let i = 0; i < 60; i++) {
-          const res = await fetch(pollEndpoint, {
-            headers: { Authorization: `Key ${apiKey}` },
-          });
-          const data = await res.json();
-          if (data.status === "COMPLETED") return data;
-          if (data.status === "FAILED")
-            throw new Error(data.error || "Generation failed");
-          if (data.logs?.length) {
-            const lastLog = data.logs[data.logs.length - 1];
-            if (lastLog.message) statusText.textContent = lastLog.message;
-          }
-          await new Promise((r) => setTimeout(r, 5000));
-        }
-        throw new Error("Timeout: Video generation took too long");
-      }
-
-      generateBtn.addEventListener("click", async () => {
-        const apiKey = document.getElementById("apiKey").value.trim();
-        const prompt = document.getElementById("prompt").value.trim();
-        const durationValue = parseInt(
-          document.getElementById("durationValue").value
-        );
-        const durationUnit = document.getElementById("durationUnit").value;
-        let duration =
-          durationUnit === "frames"
-            ? Math.round(durationValue / 24)
-            : durationValue;
-
-        try {
-          generateBtn.classList.add("loading");
-          generateBtn.disabled = true;
-          statusSection.classList.add("show");
-          resultSection.classList.remove("show");
-
-          statusText.textContent = "Preparing reference images...";
-          progressFill.style.width = "20%";
-
-          const base64Images = [];
-          for (let i = 0; i < uploadedImages.length; i++) {
-            const b64 = await fileToBase64(uploadedImages[i].file);
-            base64Images.push(b64);
-            progressFill.style.width = `${
-              20 + ((i + 1) * 30) / uploadedImages.length
-            }%`;
-          }
-
-          statusText.textContent = "Submitting generation request...";
-          progressFill.style.width = "60%";
-
-          const payload = {
-            prompt,
-            reference_image_urls: base64Images,
-            aspect_ratio: "16:9",
-            duration,
-          };
-
-          const submitResult = await makeAPICall(FAL_ENDPOINT, apiKey, payload);
-          if (!submitResult.request_id)
-            throw new Error("No request ID returned");
-
-          statusText.textContent = "Processing video...";
-          progressFill.style.width = "75%";
-
-          const result = await pollForResult(
-            submitResult.request_id,
-            apiKey,
-            FAL_ENDPOINT
-          );
-          if (!result.data?.video?.url)
-            throw new Error("No video URL in result");
-
-          resultVideo.src = result.data.video.url;
-          resultSection.classList.add("show");
-          progressFill.style.width = "100%";
-          statusText.textContent = "Video generated successfully!";
-
-          downloadBtn.onclick = () => {
-            const a = document.createElement("a");
-            a.href = result.data.video.url;
-            a.download = `vidu-video-${Date.now()}.mp4`;
-            a.click();
-          };
-
-          document.getElementById("videoInfo").innerHTML = `
-            <strong>Video Details:</strong><br>
-            Duration: ${duration}s • Resolution: 1080p • Aspect Ratio: 16:9<br>
-            Request ID: ${submitResult.request_id}
-          `;
-
-          setTimeout(() => statusSection.classList.remove("show"), 2000);
-        } catch (err) {
-          console.error(err);
-          statusText.innerHTML = `<div class="error-message">Error: ${err.message}</div>`;
-        } finally {
-          generateBtn.classList.remove("loading");
-          generateBtn.disabled = false;
-          updateGenerateButtonState();
-        }
-      });
-
-      updateGenerateButtonState();
-    </script>
+    <script src="script.js"></script>
   </body>
 </html>
